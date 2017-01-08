@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+GOOGLE_APPLICATION_CREDENTIALS=anki-card-gen-311bb758aba7.json python translate_a_thing.py
