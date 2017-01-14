@@ -1,4 +1,7 @@
 from google.cloud import translate
+from collections import namedtuple
+
+Translation = namedtuple('Translation', ('english', 'original_language', 'original'))
 
 
 def translate_text(target, text):
@@ -15,12 +18,13 @@ def translate_text(target, text):
         text,
         target_language=target)
 
-    print(u'Text: {}'.format(result['input']))
-    print(u'Translation: {}'.format(result['translatedText']))
-    print(u'Detected source language: {}'.format(
-        result['detectedSourceLanguage']))
+    return Translation(
+        english=result['translatedText'],
+        original=result['input'],
+        original_language=result['detectedSourceLanguage']
+    )
 
 
 if __name__ == '__main__':
     text = input(u'Enter text\n> ')
-    translate_text(target='en', text=text)
+    print(translate_text(target='en', text=text))
