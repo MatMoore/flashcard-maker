@@ -1,8 +1,14 @@
 # Anki flashcard generator thingy
 
-This generates Anki flashcards from the command line and adds synthesised speech.
+Generate Anki flashcards from the command line and add synthesised speech to them.
 
 ## Setup
+
+### Dependencies
+
+- Install python 3.6+
+- (Optional) activate a [https://virtualenv.pypa.io/en/stable/](virtualenv)
+- `pip install -r requirements.txt`
 
 ### Google translate API
 
