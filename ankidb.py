@@ -20,14 +20,19 @@ import random
 import sqlite3
 import string
 from collections import namedtuple
+from dotenv import load_dotenv
 from hashlib import sha1
+from os import environ
 from pathlib import Path
 
-# Front/Back/Audio/Phonetics
-MODEL_NAME = "Hangul Basic (and reversed card)"
-DECK_NAME = "Korean Custom"
+MEDIA_PREFIX = "Generated_"
 
 Card = namedtuple('Card', ('front', 'back', 'sound', 'tags'))
+
+
+def add_card(**kwargs):
+    card = Card(**kwargs)
+    Collection.from_environ().add_card(card)
 
 
 class StoredJson:
@@ -57,14 +62,32 @@ class Models(StoredJson):
 
 
 class Collection:
-    def __init__(self, conn):
+    @staticmethod
+    def from_environ():
+        collection_db = Path(environ['ANKI_DATABASE']).expanduser()
+        media_path = collection_db.parent / 'collection.media'
+        conn = sqlite3.connect(str(collection_db))
+        model_name = environ['MODEL_NAME']
+        deck_name = environ['DECK_NAME']
+
+        return Collection(
+            conn=conn,
+            media_path=media_path,
+            deck_name=deck_name,
+            model_name=model_name
+        )
+
+    def __init__(self, conn, media_path, deck_name, model_name):
         self.conn = conn
+        self.media_path = media_path
+        self.deck_name = deck_name
+        self.model_name = model_name
 
-    def _model_id(self, model_name):
-        return Models.load(self.conn).find_id_by_name(model_name)
+    def _model_id(self):
+        return Models.load(self.conn).find_id_by_name(self.model_name)
 
-    def _deck_id(self, deck_name):
-        return Decks.load(self.conn).find_id_by_name(deck_name)
+    def _deck_id(self):
+        return Decks.load(self.conn).find_id_by_name(self.deck_name)
 
     def _next_noteid(self):
         '''
@@ -98,7 +121,7 @@ class Collection:
                 ) values (
                     ?,?,?,
                     ?,?,-1,
-                    0,0,0,
+                    0,0, (select max(due) + 1 from cards), -- "show new cards in order added" mode
                     0,0,0,
                     0,0,0,
                     0,0,""
@@ -110,10 +133,15 @@ class Collection:
                 ]
             )
 
+    def _add_media(self, filename, data):
+        full_path = self.media_path / filename
+        with open(full_path, 'wb') as outfile:
+            outfile.write(data)
+
     # TODO: check for duplicates
-    def add_card(self, card, model_name=MODEL_NAME, deck_name=DECK_NAME):
-        model_id = self._model_id(model_name)
-        deck_id = self._deck_id(deck_name)
+    def add_card(self, card):
+        model_id = self._model_id()
+        deck_id = self._deck_id()
 
         if model_id is None:
             raise ValueError(f'Missing model: {model_name}')
@@ -125,9 +153,20 @@ class Collection:
         if tags:
             tags = f' {tags} '
 
-        fields = '\x1f'.join((card.front, card.back, card.sound or '', ''))
+        if card.sound:
+            sound_filename = (MEDIA_PREFIX + card.front)
+            self._add_media(sound_filename, card.sound)
+            sound_field = f'[sound:{sound_filename}]'
+        else:
+            sound_field = ''
 
-        # sfld in the model determines which field should be used
+        # Encode the fields.
+        # The order depends on how the fields are set up in the card model
+        # (this is editable from "manage note types" in Anki)
+        fields = '\x1f'.join((card.front, card.back, sound_field))
+
+        # The field used for sorting in the card browser.
+        # This is normally referenced by model.sfld.
         sort_field = card.front
 
         cursor = self.conn.cursor()
@@ -157,6 +196,7 @@ class Collection:
             deckid=deck_id
         )
 
+        self.conn.commit()
 
 
 def guid64(extra="!#$%&()*+,-./:;<=>?@[]^_`{|}~"):
@@ -177,7 +217,12 @@ def field_checksum(data):
 
 
 if __name__ == '__main__':
-    conn = sqlite3.connect(str(Path('~/Documents/Anki/User 1/collection.anki2').expanduser()))
-    card = Card(front='front', back='back', sound=None, tags=['test'])
-    Collection(conn).add_card(card)
-    conn.commit()
+    dotenv_path = Path(__file__).parent / '.env'
+    load_dotenv(dotenv_path)
+
+    add_card(
+        front='front3',
+        back='back3',
+        sound=None,
+        tags=['test']
+    )

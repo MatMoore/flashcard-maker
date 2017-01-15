@@ -39,6 +39,13 @@ Install Anki and find the path to your collection (something like `~/Documents/A
 
 Run `dotenv set ANKI_DATABASE [collection path]`
 
+Create a deck, and create a note type with an audio field. Then run:
+
+```
+dotenv set MODEL_NAME [model name]
+dotenv set DECK_NAME [deck name]
+```
+
 ## Usage
 
-TODO
+`python card_maker.py`

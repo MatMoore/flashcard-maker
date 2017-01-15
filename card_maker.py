@@ -1,8 +1,9 @@
-import requests
+from ankidb import add_card
 from translate_a_thing import translate_text, Translation
+import requests
 from os import environ
-from os.path import join, dirname
 from dotenv import load_dotenv
+from pathlib import Path
 
 
 def tts(text, client_id, client_secret):
@@ -29,7 +30,7 @@ def prompt_for_card():
 
 
 if __name__ == '__main__':
-    dotenv_path = join(dirname(__file__), '.env')
+    dotenv_path = Path(__file__).parent / '.env'
     load_dotenv(dotenv_path)
 
     translation = prompt_for_card()
@@ -40,5 +41,10 @@ if __name__ == '__main__':
 
     response = tts(translation.original, client_id, client_secret)
     response.raise_for_status()
-    with open('output.mp3', 'wb') as outfile:
-        outfile.write(response.content)
+
+    add_card(
+        front=translation.original,
+        back=translation.english,
+        sound=response.content,
+        tags=()
+    )
